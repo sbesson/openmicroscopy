@@ -14,6 +14,15 @@
       <pattern>%d %-10.10r [%10.10t] %-6.6p %40.40c - %m%n</pattern>
     </encoder>
   </appender>
+  <appender name="CoalescingStatistics" class="org.perf4j.logback.AsyncCoalescingStatisticsAppender">
+    <param name="TimeSlice" value="30000"/>
+    <appender-ref ref="Perf4jJmxAppender"/>
+  </appender>
+
+  <logger name="org.perf4j.TimingLogger">
+    <level value="INFO"/>
+    <appender-ref ref="CoalescingStatistics"/>
+  </logger>
   <logger name="ome.adapters" level="error"/>
   <logger name="ome" level="info"/>
   <logger name="ome.formats" level="info"/>
