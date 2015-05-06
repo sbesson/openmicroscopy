@@ -27,6 +27,10 @@ import java.io.StringWriter;
 import java.util.UUID;
 
 import org.apache.commons.io.FileUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.perf4j.StopWatch;
+import org.perf4j.slf4j.Slf4JStopWatch;
 
 import ome.util.checksum.ChecksumProvider;
 import omero.ServerError;
@@ -45,13 +49,16 @@ public abstract class AbstractExecFileTransfer extends AbstractFileTransfer {
 
     private static final String SEPARATOR = System.getProperty("line.separator");
 
+    final private static Logger log = LoggerFactory.getLogger(AbstractExecFileTransfer.class);
     /**
      * "Transfer" files by soft-linking them into place. This method is likely
      * re-usable for other general "linking" strategies by overriding
      * {@link #createProcessBuilder(File, File)} and the other protected methods here.
      */
     public String transfer(TransferState state) throws IOException, ServerError {
+        StopWatch stopWatch = new Slf4JStopWatch();
         RawFileStorePrx rawFileStore = start(state);
+        stopWatch.lap("start");
         try {
             final OriginalFile root = state.getRootFile();
             final OriginalFile ofile = state.getOriginalFile();
@@ -60,13 +67,20 @@ public abstract class AbstractExecFileTransfer extends AbstractFileTransfer {
             final long length = state.getLength();
             final ChecksumProvider cp = state.getChecksumProvider();
             state.uploadStarted();
+            stopWatch.lap("uploadStarted");
             checkLocation(location, rawFileStore); // closes rawFileStore
+            stopWatch.lap("checkLocation");
             state.closeUploader();
+            stopWatch.lap("closeUploader");
             exec(file, location);
+            stopWatch.lap("exec");
             checkTarget(location, state);
+            stopWatch.stop("checkTarget");
             cp.putFile(file.getAbsolutePath());
+            stopWatch.lap("putFile");
             state.stop(length);
             state.uploadBytes(length);
+            stopWatch.stop("uploadBytes");
             return finish(state, length);
         } finally {
             state.closeUploader();
@@ -114,10 +128,13 @@ public abstract class AbstractExecFileTransfer extends AbstractFileTransfer {
 
         // First we guarantee that we have the right file
         // If so, we remove it
+        StopWatch stopWatch = new Slf4JStopWatch();
         try {
             rawFileStore.write(uuid.getBytes(), 0, uuid.getBytes().length);
+            stopWatch.lap("write");
         } finally {
             rawFileStore.close();
+            stopWatch.lap("close");
         }
         try {
             if (!location.exists()) {
